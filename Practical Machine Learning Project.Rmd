@@ -1,0 +1,119 @@
+---
+title: "Practical Machine Learning Course Project"
+output: html_document
+---
+
+## **Synopsis**
+Using devices such as Jawbone Up, Nike FuelBand, and Fitbit it is now possible to collect a large amount of data about personal activity relatively inexpensively. These type of devices are part of the quantified self movement - a group of enthusiasts who take measurements about themselves regularly to improve their health, to find patterns in their behavior, or because they are tech geeks. One thing that people regularly do is quantify how much of a particular activity they do, but they rarely quantify how well they do it. In this project, your goal will be to use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. They were asked to perform barbell lifts correctly and incorrectly in 5 different ways. 
+
+In this project, we will use data from accelerometers on the belt, forearm, arm, and dumbell of 6 participants. The goal of the project is to predict the manner in which they did the exercise.  This is the "classe" variable in the training set. 
+
+## **Load libraries and set seed**
+```{r}
+library(caret) 
+library(rpart)
+library(randomForest)
+library(rattle)
+```
+
+In order to reprocedue the results, let's set the seed
+```{r}
+set.seed(1234)
+``` 
+
+
+## **Loading training & test dataset and cleaning the data**
+
+```{r}
+#traindataURL <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-training.csv"
+#testdataURL <- "https://d396qusza40orc.cloudfront.net/predmachlearn/pml-testing.csv"
+#trainset <- read.csv(url(traindataURL), na.strings=c("NA", "#DIV/0!",""))
+#testset <- read.csv(url(testdataURL), na.strings=c("NA", "#DIV/0!",""))
+trainset <- read.csv('C:\\temp1\\Coursera\\Practical Machine Learning\\Week4\\Project\\pml-training.csv', na.strings=c("NA", "#DIV/0!",""))
+testset  <- read.csv('C:\\temp1\\Coursera\\Practical Machine Learning\\Week4\\Project\\pml-testing.csv', na.strings=c("NA", "#DIV/0!",""))
+``` 
+
+```{r}
+dim(trainset)
+dim(testset)
+
+# Removing all missing value NA & extraneous fields from the dataset
+# Check near zero variability
+trainset <- trainset[,colSums(is.na(trainset)) == 0]
+testset <- testset[,colSums(is.na(testset)) == 0]
+trainset <- trainset[, -c(1:7)]
+testset <- testset[, -c(1:7)]
+nzerovar <- nearZeroVar(trainset, saveMetrics = TRUE)
+nzerovar
+``` 
+From the output, near zero variance (zeroVar) are FALSE, there is no need to eliminate any covariates due to lack of variability.
+```{r}
+dim(trainset)
+dim(testset)
+```
+
+## **Partitioning the training data set**
+To perform cross validation, I chose to divide the training data by partioning into two sets 60% and 40%
+```{r}
+inTrain <- createDataPartition(y=trainset$classe, p=0.60, list=FALSE)
+train60 <- trainset[inTrain, ];
+train40 <- trainset[-inTrain,]
+dim(train60)
+dim(train40)
+```
+
+```{r}
+str(train60$classe)
+summary(train60$classe)
+```
+### The model was built considering:
+The outcome/dependent variable has 5 levels, A,B,C,D and E.  5 different ways the study described were
+Class A - exactly according to the specification, Class B - throwing the elbows to the front, 
+Class C - lifting the dumbbell only halfway, Class D - lowering the dumbbell only halfway and Class E - throwing the hips
+to the front.  Except Class A, rest of 4 classes correspond to common mistakes.  2 models will be used
+in this analysis: Decision Tree and Random Forest algorithm.  The prediction evaluations will be
+based on maximizing the accuracy and minimizing the out of sample error.  
+
+## **1st prediction model: Decision Tree**
+```{r}
+modfitDS <- rpart(train60$classe ~ ., data=train60, method="class")
+fancyRpartPlot(modfitDS)
+```
+
+## **2nd prediction model: Random Forest**
+```{r}
+modfitRF <- randomForest(train60$classe ~ ., data=train60, method="class")
+```
+
+### **Cross validation**  
+Cross validation will be performed on the subset of training data selected randomly.  The data is split into (60% and 40%).
+The models will be fitted on the subset of training data set.  Based on the most accurate outcome from Decision Tree and Random Forest models, the most accurate model will be tested with the main testing data set.
+
+### **Decision Tree**
+```{r}
+predictionDS <- predict(modfitDS, train40, type="class")
+confusionMatrix(predictionDS, train40$classe)
+```
+
+### **Random Forest**
+```{r}
+predictionRF <- predict(modfitRF, train40, type="class")
+confusionMatrix(predictionRF, train40$classe)
+```
+
+### Expected out of sample error  
+Decision Tree Accuracy : 0.7392 at 95% CI : (0.7294, 0.7489)
+Random Forest Accuracy : 0.9924 at 95% CI : (0.9902, 0.9942)
+Compared to Decision Tree algorithm with Random Forest, Random Forest algorithm shows better accuracy.  Based on the accuracy Random Forecast model is selected.  The accuracy of the Random Forest model is 0.9924.  The expected out of sample error is estimate at 0.008.  The expected out of sample error is calculated as 1 minus accuracy for predictions against the cross validation set.  With the chosen random forest model of accuracy above 99% on the cross validation data set, we can expect very few or none of the test samples should be misclassified.
+
+## **Applying machine learning algorithm to the 20 test cases**
+```{r}
+predict20test <- predict(modfitRF, testset, type="class")
+predict20test
+```
+
+## References
+
+[1] http://groupware.les.inf.puc-rio.br/har
+
+*[2] Velloso, E.; Bulling, A.; Gellersen, H.; Ugulino, W.; Fuks, H. Qualitative Activity Recognition of Weight Lifting Exercises. Proceedings of 4th International Conference in Cooperation with SIGCHI (Augmented Human '13) . Stuttgart, Germany: ACM SIGCHI, 2013.*
