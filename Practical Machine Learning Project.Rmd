@@ -38,7 +38,7 @@ dim(trainset)
 dim(testset)
 
 # Removing all missing value NA & extraneous fields from the dataset
-# Check near zero variability
+# Check near zero variance
 trainset <- trainset[,colSums(is.na(trainset)) == 0]
 testset <- testset[,colSums(is.na(testset)) == 0]
 trainset <- trainset[, -c(1:7)]
